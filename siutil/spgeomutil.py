@@ -1,5 +1,15 @@
 import numpy as np
-from .geomutil import geom_tile_from_matrix, geom_sc_geom, geom_uc_match
+from .geomutil import geom_tile_from_matrix, geom_sc_geom, geom_uc_match, geom_uc_wrap
+
+
+def spgeom_wrap_uc(spgeom):
+    """Wrap any atoms outside the unit cell back into the unit cell. Matrix elements 'make sense',
+    ie. unit cell couplings reaching outside the uc become super cell couplings (and vice versa)."""
+    new_geom = geom_uc_wrap(spgeom.geom)
+    newspgeom = spgeom.__class__(new_geom, dim=spgeom.dim)
+    newspgeom._orthogonal = spgeom.orthogonal
+    spgeom_transfer_periodic(spgeom, newspgeom, (0, 0))
+    return newspgeom
 
 
 def spgeom_transfer_periodic(spfrom, spto, pair):

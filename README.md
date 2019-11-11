@@ -36,5 +36,6 @@ The functions are still subject to significant change.
 
 | Function             | Description                                   |
 |:-------------------- |:--------------------------------------------- |
+| `spgeom_wrap_uc(spgeom)` | Wrap any atoms outside the unit cell back into the unit cell. Matrix elements 'make sense', ie. unit cell couplings reaching outside the uc become super cell couplings (and vice versa). |
 | `spgeom_tile_from_matrix(spgeom, tile)` | Choose a new periodicity for a sparse geometry. `tile` is a matrix where each row represents the linear combination of old lattice vectors that form a new lattice vector.  Must be integers. |
 | `spgeom_transfer_periodic(spfrom, spto, pair)` | Copy all the matrix elements from spfrom to spto in places where spto correspond to periodic repetitions of spfrom. You must provide a `pair`, being a two-tuple consisting of an index from each of the two sparse geometries that match (eg. `(0, 0)` if the first atoms are the same). |
