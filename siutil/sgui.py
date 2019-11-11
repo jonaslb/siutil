@@ -7,7 +7,7 @@ import argparse as ap
 
 
 def main():
-    p = ap.ArgumentParser(help=__doc__)
+    p = ap.ArgumentParser(description=__doc__)
     a = p.add_argument
     a("files", nargs="+")
     args = p.parse_args()
