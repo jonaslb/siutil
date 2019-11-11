@@ -34,23 +34,51 @@ def geom_tile_from_matrix(geom, tile):
 
 
 def geom_uc_match(geom0, geom1):
-    """For each atom in the unit cell of geom0, a list of unit cell atom indices in geom1 that
-    are identical (coordinate, specie) is returned. So if `geom0 is geom1`, you will get
-    `[[0], [1], [2], ...]` (up to the number of unit cell atoms)."""
-    # TODO: compute distances for same species only, allow taking pre-computed samespecie matrix
-    isclose = np.linalg.norm(geom0.xyz[:, None, :]-geom1.xyz[None, :, :], axis=2) < 1e-3
+    """Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 and col 2 is
+    idx match in g1."""
     samespecie = atoms_match(geom0.atom, geom1.atom)
+    # TODO: Only calc distances where atoms are same specie, also allow taking precomputed samespecie
+    isclose = np.linalg.norm(geom0.xyz[:, None, :]-geom1.xyz[None, :, :], axis=2) < 1e-3
     match = np.logical_and(isclose, samespecie)
-    ret = [[] for _ in range(len(geom0))]
-    for i, j in np.argwhere(match):
-        ret[i].append(j)
-    return ret
+    match = np.array(np.nonzero(match))
+    return match.T
 
 
 def geom_sc_match(geom0, geom1):
-    """For each atom in the supercell of geom0, a list of supercell atom indices in geom1 that
-    are identical (coordinate, specie) is returned. So if `geom0 is geom1`, you will get
-    `[[0], [1], [2], ...]` (up to the number of supercell atoms)."""
-    # Note: Supercell atoms in geom0 may be unit cell atoms in geom1, so we cant 'simply' use uc2sc
-    # Perhaps iterate supercells in each geom
-    raise NotImplementedError()
+    """Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 sc and col 2
+    is idx match in g1 sc."""
+    g0sc = geom_sc_geom(geom0)
+    g1sc = geom_sc_geom(geom1)
+    return geom_uc_match(g0sc, g1sc)
+
+
+def geom_uc_wrap(geom):
+    """Wrap any atoms outside the unit cell into the unit cell."""
+    g = geom.copy()
+    g.xyz -= np.floor(g.fxyz).dot(g.sc.cell)
+    return g
+
+
+def geom_sc_geom(geom, uc_lowerleft=True, wrap=False):
+    """Return a geometry where the unit cell is the supercell of the given geometry
+    (incl. ordering). Works for spgeom as well.
+    """
+    nsc = np.array(geom.sc.nsc)
+    na = geom.na
+    # Tile the geom out
+    g = geom.copy()
+    for ia, nt in enumerate(nsc):
+        g = g.tile(nt, ia)
+    # Reorder according to sc indices
+    lowerleft = -(nsc - 1) / 2
+    tosub = []
+    for offset in geom.sc.sc_off:
+        t = offset - lowerleft
+        start = t[0]*na + nsc[0]*t[1]*na + nsc[0]*nsc[1]*t[2]*na
+        tosub.append(np.arange(start, start + na))
+    g = g.sub(np.concatenate(tosub))
+    if uc_lowerleft:
+        g = g.move(geom.xyz[0] - g.xyz[0])
+    if wrap:
+        g = geom_uc_wrap(g)
+    return g

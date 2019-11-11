@@ -2,7 +2,7 @@
 """A very small tool to load one or several geometries using sisl and then show them using ase gui.
 """
 import sisl as si
-from ase.visualize import view
+from siutil.sview import sview
 import argparse as ap
 
 
@@ -12,7 +12,7 @@ def main():
     a("files", nargs="+")
     args = p.parse_args()
     for file in args.files:
-        view(si.get_sile(file).read_geometry().toASE())
+        sview(si.get_sile(file).read_geometry())
 
 
 if __name__ == "__main__":

@@ -8,6 +8,13 @@ The functions are still subject to significant change.
 
 ## Quick overview
 
+### Commandline and etc
+
+| What | Description |
+| :--- | :---------- |
+| Command `sgui` | Similar to `ase gui` but loads the given files with sisl (ie. better file support) |
+| `from siutil.sview import sview; sview(geom)` | Opens ase gui for the sisl geometry `geom`. |
+
 ### Atoms utils
 
 | Function             | Description                                   |
@@ -19,13 +26,15 @@ The functions are still subject to significant change.
 
 | Function             | Description                                   |
 |:-------------------- |:--------------------------------------------- |
+| `geom_uc_wrap(geom)` | Wrap any atoms outside the unit cell into the unit cell. |
 | `geom_tile_from_matrix(geom, tile)` | Choose a new periodicity for a geometry. `tile` is a matrix where each row represents the linear combination of old lattice vectors that form a new lattice vector. Must be integers. |
-| `geom_uc_match(geom0, geom1)` | For each atom in the unit cell of geom0, a list of unit cell atom indices in geom1 that are identical (coordinate, specie) is returned. So if `geom0 is geom1`, you will get `[[0], [1], [2], ...]` (up to the number of unit cell atoms). |
-| `geom_sc_match(geom0, geom1)` | Not implemented |
+| `geom_uc_match(geom0, geom1)` | Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 and col 2 is idx match in g1. |
+| `geom_sc_match(geom0, geom1)` | Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 sc and col 2 is idx match in g1 sc. |
+| `geom_sc_geom(geom, uc_lowerleft=True, wrap=False)` | Return a geometry where the unit cell is the supercell of the given geometry (incl. ordering). Works for spgeom as well. |
 
 ### Spgeom utils (hamiltonian etc)
 
 | Function             | Description                                   |
 |:-------------------- |:--------------------------------------------- |
-| `spgeom_tile_from_matrix(spgeom, tile)` | Not (fully) implemented |
-| `spgeom_transfer_periodic(spfrom, spto, pair)` | Not implemented |
+| `spgeom_tile_from_matrix(spgeom, tile)` | Choose a new periodicity for a sparse geometry. `tile` is a matrix where each row represents the linear combination of old lattice vectors that form a new lattice vector.  Must be integers. |
+| `spgeom_transfer_periodic(spfrom, spto, pair)` | Copy all the matrix elements from spfrom to spto in places where spto correspond to periodic repetitions of spfrom. You must provide a `pair`, being a two-tuple consisting of an index from each of the two sparse geometries that match (eg. `(0, 0)` if the first atoms are the same). |
