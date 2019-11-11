@@ -27,7 +27,6 @@ def spgeom_transfer_periodic(spfrom, spto, pair):
         gtof = np.dot(gtotmp.xyz, gfrom.icell.T)
         # Note: small negative (eg 1e-17) becomes 1 when mod is taken
         images_in_new_uc = np.flatnonzero(np.linalg.norm(np.abs(gtof) % 1, axis=1) < 1e-3)
-        print(iaold, images_in_new_uc)
         # Orbitals on iaold
         io_old = spfrom.a2o(iaold, all=True)
         # images_in_new_sc = gtotmp.auc2sc(images_in_new_uc)
@@ -52,7 +51,7 @@ def spgeom_tile_from_matrix(spgeom, tile):
     the linear combination of old lattice vectors that form a new lattice vector.
     Must be integers."""
     gtiled = geom_tile_from_matrix(spgeom.geom, tile)
-    spg = spgeom.__class__(gtiled, dim=spgeom.dim)
+    spg = spgeom.__class__(gtiled, spin=spgeom.spin, orthogonal=spgeom.orthogonal)
     spgeom_transfer_periodic(spgeom, spg, (0, 0))
     spg._orthogonal = spgeom.orthogonal
     spg._reset()

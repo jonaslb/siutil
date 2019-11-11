@@ -24,13 +24,18 @@ def geom_tile_from_matrix(geom, tile):
     # Fold atoms into the new cell
     g.xyz -= np.floor(g.fxyz).dot(g.cell)
     # Remove duplicates
-    eps = 1e-4
-    dupes = np.where(
-        np.linalg.norm(g.xyz.reshape(-1, 1, 3) - g.xyz.reshape(1, -1, 3), axis=2) < eps)
-    todelete = list(set(j for i, j in zip(*dupes) if j > i))
-    g = g.remove(todelete)
-
+    g = geom_remove_dupes_pbc(g)
     return g
+
+
+def geom_remove_dupes_pbc(geom, eps=1e-3):
+    na0 = geom.na
+    gt = geom.tile(2, 0).tile(2, 1).tile(2, 2)
+    dupes = np.nonzero(
+        np.linalg.norm(gt.xyz.reshape(-1, 1, 3) - gt.xyz.reshape(1, -1, 3), axis=2) < eps)
+    dupes = np.array(dupes) % na0
+    dupes = list(set(ia1 for ia0, ia1 in dupes.T if ia0 < ia1))
+    return geom.remove(dupes)
 
 
 def geom_uc_match(geom0, geom1):
