@@ -1,6 +1,6 @@
 # Some Sisl utils (`siutil`)
 
-These are some extra utility functions that are built around the (Sisl)[github.com/zerothi/sisl] package.
+These are some extra utility functions that are built around the [Sisl](github.com/zerothi/sisl) package.
 They might not exactly fit into Sisl or need further work before being moved there, but since they are still useful, I thought they deserved their own repository.
 Any sort-of-general-purpose utils that might not fit into sisl or could just be 'litter' there are welcome here.
 
