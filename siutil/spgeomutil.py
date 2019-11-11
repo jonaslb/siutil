@@ -6,7 +6,7 @@ def spgeom_wrap_uc(spgeom):
     """Wrap any atoms outside the unit cell back into the unit cell. Matrix elements 'make sense',
     ie. unit cell couplings reaching outside the uc become super cell couplings (and vice versa)."""
     new_geom = geom_uc_wrap(spgeom.geom)
-    newspgeom = spgeom.__class__(new_geom, dim=spgeom.dim)
+    newspgeom = spgeom.__class__(new_geom, spin=spgeom.spin, orthogonal=spgeom.orthogonal)
     newspgeom._orthogonal = spgeom.orthogonal
     spgeom_transfer_periodic(spgeom, newspgeom, (0, 0))
     return newspgeom
