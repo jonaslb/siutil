@@ -1,5 +1,7 @@
 import numpy as np
-from .geomutil import geom_tile_from_matrix, geom_sc_geom, geom_uc_match, geom_uc_wrap
+from .geomutil import (
+    geom_tile_from_matrix, geom_sc_geom, geom_uc_match, geom_sc_match, geom_uc_wrap
+    )
 
 
 def spgeom_wrap_uc(spgeom):
@@ -10,6 +12,28 @@ def spgeom_wrap_uc(spgeom):
     newspgeom._orthogonal = spgeom.orthogonal
     spgeom_transfer_periodic(spgeom, newspgeom, (0, 0))
     return newspgeom
+
+
+def spgeom_transfer_to_sub(spfrom, spto, pair):
+    """Copy all matrix elements from spfrom to spto in the place specified with pair; pair should
+    be an atom in each of the spgeoms that match. The geometries are then rigidly matched from
+    there, and on all matches (species and location) the matrix elements are transferred."""
+    gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
+
+    uc0m, uc1m = geom_uc_match(gfrom, spto.geom).T
+    sc0m, sc1m = geom_sc_match(gfrom, spto.geom).T
+
+    for m0, m1 in zip(uc0m, uc1m):
+        # These are the matched 'from' atoms (uc)
+        m0os = gfrom.a2o(m0, all=True)
+        m1os = spto.geom.a2o(m1, all=True)
+        for sm0, sm1 in zip(sc0m, sc1m):
+            # These are the matched 'to' atoms (sc)
+            sm0os = gfrom.a2o(sm0, all=True)
+            sm1os = spto.geom.a2o(sm1, all=True)
+            for m0o, m1o in zip(m0os, m1os):
+                spto[m1o, sm1os] = spfrom[m0o, sm0os]
+    return  # inplace operation
 
 
 def spgeom_transfer_periodic(spfrom, spto, pair):
