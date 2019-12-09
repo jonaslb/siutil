@@ -10,9 +10,10 @@ def main():
     p = ap.ArgumentParser(description=__doc__)
     a = p.add_argument
     a("files", nargs="+")
+    a("-ghosts-z", default=None)
     args = p.parse_args()
     for file in args.files:
-        sview(si.get_sile(file).read_geometry())
+        sview(si.get_sile(file).read_geometry(), ghosts_z=args.ghosts_z)
 
 
 if __name__ == "__main__":
