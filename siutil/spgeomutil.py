@@ -8,7 +8,10 @@ def spgeom_wrap_uc(spgeom):
     """Wrap any atoms outside the unit cell back into the unit cell. Matrix elements 'make sense',
     ie. unit cell couplings reaching outside the uc become super cell couplings (and vice versa)."""
     new_geom = geom_uc_wrap(spgeom.geom)
-    newspgeom = spgeom.__class__(new_geom, spin=spgeom.spin, orthogonal=spgeom.orthogonal)
+    kwargs = dict(orthogonal=spgeom.orthogonal)
+    if hasattr(spgeom, "spin"):
+        kwargs["spin"] = spgeom.spin
+    newspgeom = spgeom.__class__(new_geom, **kwargs)
     newspgeom._orthogonal = spgeom.orthogonal
     spgeom_transfer_periodic(spgeom, newspgeom, (0, 0))
     return newspgeom
@@ -50,10 +53,10 @@ def spgeom_transfer_periodic(spfrom, spto, pair):
         gtotmp = spto.geom.move(-gfrom.xyz[iaold])
         gtof = np.dot(gtotmp.xyz, gfrom.icell.T)
         # Note: small negative (eg 1e-17) becomes 1 when mod is taken
-        images_in_new_uc = np.flatnonzero(np.linalg.norm(np.abs(gtof) % 1, axis=1) < 1e-3)
+        # breakpoint()
+        images_in_new_uc = np.flatnonzero(np.linalg.norm(np.abs(gtof) % (1-1e-15), axis=1) < 1e-3)
         # Orbitals on iaold
         io_old = spfrom.a2o(iaold, all=True)
-        # images_in_new_sc = gtotmp.auc2sc(images_in_new_uc)
         for ianew in images_in_new_uc:
             io_new = spto.a2o(ianew, all=True)
             # Now iaold and ianew are the same atom (save a unit cell translation).
@@ -75,7 +78,10 @@ def spgeom_tile_from_matrix(spgeom, tile):
     the linear combination of old lattice vectors that form a new lattice vector.
     Must be integers."""
     gtiled = geom_tile_from_matrix(spgeom.geom, tile)
-    spg = spgeom.__class__(gtiled, spin=spgeom.spin, orthogonal=spgeom.orthogonal)
+    kwargs = dict(orthogonal=spgeom.orthogonal)
+    if hasattr(spgeom, "spin"):
+        kwargs["spin"] = spgeom.spin
+    spg = spgeom.__class__(gtiled, **kwargs)
     spgeom_transfer_periodic(spgeom, spg, (0, 0))
     spg._orthogonal = spgeom.orthogonal
     spg._reset()
