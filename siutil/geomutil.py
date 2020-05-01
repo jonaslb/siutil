@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.distance import cdist
 from .atomutil import atoms_match
 
 
@@ -87,3 +88,27 @@ def geom_sc_geom(geom, uc_lowerleft=True, wrap=False):
     if wrap:
         g = geom_uc_wrap(g)
     return g
+
+
+def geom_periodic_match_geom(unitg, superg, pair, ret_cell_offsets=False):
+    """Given a unit geometry (unitg), a larger geometry (superg) and pair (eg. (0,1)),
+    return a list of pairs of atoms, where the first is a unitg atom and the second is a periodic
+    repetition of that atom in superg (wrt unitg cell)"""
+    ua, sa = pair
+    superg = superg.move(unitg.xyz[ua] - superg.xyz[sa])
+    
+    ufx = unitg.fxyz
+    uc_off, ufx = np.divmod(ufx, 1)
+
+    sfx = np.dot(superg.xyz, unitg.icell.T)
+    cell_off, sfx = np.divmod(sfx, 1)
+
+    # Will have uc atom 0 repeated a number of times first for each match in big, etc. 
+    # TODO to allow choosing sorting by the transposed op.
+    uca, sca = (cdist(ufx, sfx) < 1e-4).nonzero()
+
+    if ret_cell_offsets:
+        celloffsets = cell_off[sca, :]
+        celloffsets -= uc_off[uca, :]
+        return uca, sca, celloffsets
+    return uca, sca
