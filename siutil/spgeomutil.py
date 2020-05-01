@@ -18,14 +18,14 @@ def spgeom_wrap_uc(spgeom):
     return newspgeom
 
 
-def spgeom_transfer_to_sub(spfrom, spto, pair, only_dim=None):
+def spgeom_transfer_to_sub(spfrom, spto, pair, only_dim=None, match_specie=True):
     """Copy all matrix elements from spfrom to spto in the place specified with pair; pair should
     be an atom in each of the spgeoms that match. The geometries are then rigidly matched from
     there, and on all matches (species and location) the matrix elements are transferred."""
     gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
 
     # uc0m, uc1m = geom_uc_match(gfrom, spto.geom).T
-    sc0m, sc1m = geom_sc_match(gfrom, spto.geom).T
+    sc0m, sc1m = geom_sc_match(gfrom, spto.geom, match_specie=match_specie).T
     uc0m = sc0m[sc0m < gfrom.na]
     uc1m = sc1m[sc1m < spto.na]
 

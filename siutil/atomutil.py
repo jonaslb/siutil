@@ -18,6 +18,8 @@ def atoms_unique_match(atoms0, atoms1):
 def atoms_match(atoms0, atoms1):
     """Return a bool matrix_ij for whether atoms0[i]==atoms1[j] (all atoms in a geom)."""
     umatch = np.array(atoms_unique_match(atoms0, atoms1))
+    if len(umatch) == 0:
+        return np.zeros((len(atoms0.specie), len(atoms1.specie)), dtype=bool)
     spec0 = atoms0.specie.copy()
     spec1 = atoms1.specie.copy()
     all_isect0 = umatch[:, 0]

@@ -39,23 +39,28 @@ def geom_remove_dupes_pbc(geom, eps=1e-3):
     return geom.remove(dupes)
 
 
-def geom_uc_match(geom0, geom1):
+def geom_uc_match(geom0, geom1, match_specie=True):
     """Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 and col 2 is
     idx match in g1."""
-    samespecie = atoms_match(geom0.atom, geom1.atom)
+    if match_specie:
+        samespecie = atoms_match(geom0.atom, geom1.atom)
+    
     # TODO: Only calc distances where atoms are same specie, also allow taking precomputed samespecie
     isclose = np.linalg.norm(geom0.xyz[:, None, :]-geom1.xyz[None, :, :], axis=2) < 1e-3
-    match = np.logical_and(isclose, samespecie)
+    if match_specie:
+        match = np.logical_and(isclose, samespecie)
+    else:
+        match = isclose
     match = np.array(np.nonzero(match))
     return match.T
 
 
-def geom_sc_match(geom0, geom1):
+def geom_sc_match(geom0, geom1, match_specie=True):
     """Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 sc and col 2
     is idx match in g1 sc."""
     g0sc = geom_sc_geom(geom0)
     g1sc = geom_sc_geom(geom1)
-    return geom_uc_match(g0sc, g1sc)
+    return geom_uc_match(g0sc, g1sc, match_specie=match_specie)
 
 
 def geom_uc_wrap(geom):
