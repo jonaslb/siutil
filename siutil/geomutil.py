@@ -81,7 +81,7 @@ def geom_sc_geom(geom, uc_lowerleft=True, wrap=False):
     for offset in geom.sc.sc_off:
         t = offset - lowerleft
         start = t[0]*na + nsc[0]*t[1]*na + nsc[0]*nsc[1]*t[2]*na
-        tosub.append(np.arange(start, start + na))
+        tosub.append(np.arange(int(start), int(start + na)))
     g = g.sub(np.concatenate(tosub))
     if uc_lowerleft:
         g = g.move(geom.xyz[0] - g.xyz[0])
