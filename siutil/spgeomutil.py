@@ -1,3 +1,4 @@
+import sisl as si
 from itertools import starmap
 import numpy as np
 from .geomutil import (
@@ -112,3 +113,28 @@ def spgeom_tile_from_matrix(spgeom, tile):
     spg._orthogonal = spgeom.orthogonal
     spg._reset()
     return spg
+
+
+def spgeom_lrsub(spgeom, left, right, geom="left"):
+    """'cross-sub' a spgeom. Result is a new spgeom. Does not necessarily make sense except for very particular cases."""
+    if geom == "left":
+        geom = spgeom.geom.sub(left)
+    elif geom == "right":
+        geom = spgeom.geom.sub(right)
+    elif isinstance(geom, si.Geometry):
+        pass
+    else:
+        raise ValueError()
+
+    kwargs = dict(orthogonal=spgeom.orthogonal)
+    if hasattr(spgeom, "spin"):
+        kwargs["spin"] = spgeom.spin
+    newsp = spgeom.__class__(geom, **kwargs)
+    nsc = newsp.nsc
+
+    left = spgeom.a2o(left, all=True)
+    right = spgeom.a2o(right, all=True)
+    to_l = np.arange(spgeom.no)
+    to_r = np.arange(spgeom.no * nsc[0] * nsc[1] * nsc[2])
+    spgeom_transfer_outeridx(spgeom, newsp, left, right, to_l, to_r)
+    return newsp
