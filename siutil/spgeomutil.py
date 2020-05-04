@@ -133,7 +133,7 @@ def spgeom_lrsub(spgeom, left, right, geom="left"):
     nsc = newsp.nsc
 
     left = spgeom.a2o(left, all=True)
-    right = spgeom.a2o(right, all=True)
+    right = spgeom.a2o(spgeom.auc2sc(right), all=True)
     to_l = np.arange(newsp.no)
     to_r = np.arange(newsp.no * nsc[0] * nsc[1] * nsc[2])
     spgeom_transfer_outeridx(spgeom, newsp, left, right, to_l, to_r)
