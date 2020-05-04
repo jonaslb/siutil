@@ -131,7 +131,7 @@ def spgeom_lrsub(spgeom, left, right, geom="left", can_finalize=True):
     elif isinstance(geom, si.Geometry):
         pass
     else:
-        raise ValueError()
+        raise TypeError("Invalid geometry, must refer to 'left' or 'right' or be a sisl.Geometry")
 
     left = spgeom.a2o(left, all=True)
     right = spgeom.a2o(spgeom.auc2sc(right), all=True)
