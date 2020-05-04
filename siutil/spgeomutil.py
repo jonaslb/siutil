@@ -1,4 +1,5 @@
 import sisl as si
+import scipy.sparse as ssp
 from itertools import starmap
 import numpy as np
 from .geomutil import (
@@ -115,8 +116,14 @@ def spgeom_tile_from_matrix(spgeom, tile):
     return spg
 
 
-def spgeom_lrsub(spgeom, left, right, geom="left"):
+def tprint(*args, **kwargs):
+    from datetime import datetime
+    print(f"{datetime.now():%H:%M:%S}:", *args, **kwargs)
+
+
+def spgeom_lrsub(spgeom, left, right, geom="left", can_finalize=True):
     """'cross-sub' a spgeom. Result is a new spgeom. Does not necessarily make sense except for very particular cases."""
+ 
     if geom == "left":
         geom = spgeom.geom.sub(left)
     elif geom == "right":
@@ -126,15 +133,28 @@ def spgeom_lrsub(spgeom, left, right, geom="left"):
     else:
         raise ValueError()
 
-    kwargs = dict(orthogonal=spgeom.orthogonal)
-    if hasattr(spgeom, "spin"):
-        kwargs["spin"] = spgeom.spin
-    newsp = spgeom.__class__(geom, **kwargs)
-    nsc = newsp.nsc
-
     left = spgeom.a2o(left, all=True)
     right = spgeom.a2o(spgeom.auc2sc(right), all=True)
-    to_l = np.arange(newsp.no)
-    to_r = np.arange(newsp.no * nsc[0] * nsc[1] * nsc[2])
-    spgeom_transfer_outeridx(spgeom, newsp, left, right, to_l, to_r)
+
+    # Perform on stack of csr-matrices
+    if can_finalize:
+        spgeom.finalize()
+    csrs = []
+    for nd in range(spgeom.dim):
+        if can_finalize:
+            csr = spgeom._csr
+            # no-copy version of sisl.tocsr
+            csr = ssp.csr_matrix((csr._D[:, nd], csr.col, csr.ptr), shape=csr.shape[:2])
+            # Copy after sub instead (see scipy gh #11255 for indexing)
+            csrs.append(csr[left, :][:, right].copy())
+        else:
+            csrs.append(spgeom.tocsr(dim=nd))
+
+    kwargs = dict()
+    if hasattr(spgeom, "spin"):
+        kwargs["spin"] = spgeom.spin
+    if spgeom.orthogonal:
+        newsp = spgeom.fromsp(geom, P=csrs, **kwargs)
+    else:
+        newsp = spgeom.fromsp(geom, P=csrs[:-1], S=csrs[-1], **kwargs)
     return newsp
