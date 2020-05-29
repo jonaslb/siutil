@@ -30,6 +30,9 @@ def geom_tile_from_matrix(geom, tile):
 
 
 def geom_remove_dupes_pbc(geom, eps=1e-3):
+    """Get a geom similar to given geom but without any pbc dupes.
+    This is a simplistic function that only works for neighboring cells.
+    """
     na0 = geom.na
     gt = geom.tile(2, 0).tile(2, 1).tile(2, 2)
     dupes = np.nonzero(
