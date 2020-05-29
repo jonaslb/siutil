@@ -86,34 +86,56 @@ def spgeom_transfer_periodic(spfrom, spto, pair):
     """Copy all the matrix elements from spfrom to spto in places where spto correspond to periodic
     repetitions of spfrom. You must provide a `pair`, being a two-tuple consisting of an index from
     each of the two sparse geometries that match (eg. `(0, 0)` if the first atoms are the same)."""
-    gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
+    # gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
 
-    gfromsc = geom_sc_geom(gfrom)
-    gtosc = geom_sc_geom(spto.geom)
+    # gfromsc = geom_sc_geom(gfrom)
+    # gtosc = geom_sc_geom(spto.geom)
 
-    for iaold in range(len(gfrom)):
-        # For every atom in spfrom, find the periodic repetitions in spto
-        # Todo use geomutil.geom_periodic_match_geom
-        gtotmp = spto.geom.move(-gfrom.xyz[iaold])
-        gtof = np.dot(gtotmp.xyz, gfrom.icell.T)
-        # Note: small negative (eg 1e-17) becomes 1 when mod is taken
-        # breakpoint()
-        images_in_new_uc = np.flatnonzero(np.linalg.norm(np.abs(gtof) % (1-1e-15), axis=1) < 1e-3)
-        # Orbitals on iaold
-        io_old = spfrom.a2o(iaold, all=True)
-        for ianew in images_in_new_uc:
-            io_new = spto.a2o(ianew, all=True)
-            # Now iaold and ianew are the same atom (save a unit cell translation).
-            # Therefore we now need to match the supercells here and then transfer elements.
-            gf = gfromsc.move(-gfromsc.xyz[iaold, :])
-            gt = gtosc.move(-gtosc.xyz[ianew, :])
-            gfm, gtm = geom_uc_match(gf, gt).T
-            for match0, match1 in zip(gfm, gtm):
-                # Need to only use a2o for one atom at a time to avoid reordering
-                orb0 = spfrom.a2o(match0, all=True)
-                orb1 = spto.a2o(match1, all=True)
-                for o_old, o_new in zip(io_old, io_new):
-                    spto[o_new, orb1] = spfrom[o_old, orb0]
+    # # New impl.
+    # # find all cell matches
+    # # match sc there instead of for every atom
+    # # TODO TODO TODO
+    # afrom, ato, offsets = geom_periodic_match_geom(gfrom, spto.geom, pair, return_cell_offsets=True)
+    # cellmatches = np.unique(offsets, axis=0)
+
+    # atom_matches = []
+    # for cellmatch in cellmatches:
+    #     iamatch = np.flatnonzero(np.bitwise_and.reduce(np.equal(offsets, cellmatch.reshape(1, 3)), axis=1))
+    #     afrom_here = afrom[iamatch]
+
+    # periodic_reps = defaultdict(list)
+    # for af, at, offset in zip(afrom, ato):
+    #     periodic_reps[af].append(at)
+    # periodic_reps = dict(periodic_reps)
+
+    # for iafrom, matches in periodic_reps.items():
+
+        
+
+    # Old impl.
+    # for iaold in range(len(gfrom)):
+    #     # For every atom in spfrom, find the periodic repetitions in spto
+    #     # Todo use geomutil.geom_periodic_match_geom
+    #     gtotmp = spto.geom.move(-gfrom.xyz[iaold])
+    #     gtof = np.dot(gtotmp.xyz, gfrom.icell.T)
+    #     # Note: small negative (eg 1e-17) becomes 1 when mod is taken
+    #     # breakpoint()
+    #     images_in_new_uc = np.flatnonzero(np.linalg.norm(np.abs(gtof) % (1-1e-15), axis=1) < 1e-3)
+    #     # Orbitals on iaold
+    #     io_old = spfrom.a2o(iaold, all=True)
+    #     for ianew in images_in_new_uc:
+    #         io_new = spto.a2o(ianew, all=True)
+    #         # Now iaold and ianew are the same atom (save a unit cell translation).
+    #         # Therefore we now need to match the supercells here and then transfer elements.
+    #         gf = gfromsc.move(-gfromsc.xyz[iaold, :])
+    #         gt = gtosc.move(-gtosc.xyz[ianew, :])
+    #         gfm, gtm = geom_uc_match(gf, gt).T
+    #         for match0, match1 in zip(gfm, gtm):
+    #             # Need to only use a2o for one atom at a time to avoid reordering
+    #             orb0 = spfrom.a2o(match0, all=True)
+    #             orb1 = spto.a2o(match1, all=True)
+    #             for o_old, o_new in zip(io_old, io_new):
+    #                 spto[o_new, orb1] = spfrom[o_old, orb0]
     return  # inplace operation
 
 
