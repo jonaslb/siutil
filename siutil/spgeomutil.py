@@ -82,33 +82,61 @@ def spgeom_transfer_outeridx(spfrom, spto, from_left, from_right, to_left, to_ri
         raise ValueError(f"Invalid op {op}")
 
 
-def spgeom_transfer_periodic(spfrom, spto, pair):
+def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     """Copy all the matrix elements from spfrom to spto in places where spto correspond to periodic
     repetitions of spfrom. You must provide a `pair`, being a two-tuple consisting of an index from
     each of the two sparse geometries that match (eg. `(0, 0)` if the first atoms are the same)."""
-    # gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
+    gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
 
-    # gfromsc = geom_sc_geom(gfrom)
-    # gtosc = geom_sc_geom(spto.geom)
+    gfromsc = geom_sc_geom(gfrom)
+    gtosc = geom_sc_geom(spto.geom)
 
-    # # New impl.
-    # # find all cell matches
-    # # match sc there instead of for every atom
-    # # TODO TODO TODO
-    # afrom, ato, offsets = geom_periodic_match_geom(gfrom, spto.geom, pair, return_cell_offsets=True)
-    # cellmatches = np.unique(offsets, axis=0)
+    # Match from_uc to to_sc
+    afrom, ato, offsets = geom_periodic_match_geom(gfrom, gtosc, pair, return_cell_offsets=True)
+    # Todo: Only do uc-uc and calculate the uc-sc directly (should give speedup)
 
-    # atom_matches = []
-    # for cellmatch in cellmatches:
-    #     iamatch = np.flatnonzero(np.bitwise_and.reduce(np.equal(offsets, cellmatch.reshape(1, 3)), axis=1))
-    #     afrom_here = afrom[iamatch]
+    def to_cell_dict(a_frto, offsets):
+        cellmatches = np.unique(offsets, axis=0)
+        mdict = dict()
+        for cm in cellmatches:
+            key = cm.tobytes()
+            idces = np.flatnonzero(np.all(cm == offsets, axis=0))
+            mdict[key] = a_frto[:, idces]
+        return cellmatches, mdict
 
-    # periodic_reps = defaultdict(list)
-    # for af, at, offset in zip(afrom, ato):
-    #     periodic_reps[af].append(at)
-    # periodic_reps = dict(periodic_reps)
+    # All the matches from uc to sc
+    sca_match = np.vstack((afrom, ato))
+    scc_match, d_sc_match = to_cell_dict(sca_match, offsets)
 
-    # for iafrom, matches in periodic_reps.items():
+    # All the matches from uc to uc
+    uca_match_filter = np.flatnonzero(sca_match[1,:] < spto.na)
+    uca_match = sca_match[:, uca_match_filter]
+    offsets_uca = offsets[uca_match_filter, :]
+    ucc_match, d_uc_match = to_cell_dict(uca_match, offsets_uca)
+
+    # For each uc-uc cell match, the matches are LEFT side atomic indices
+    # To obtain RIGHT side atomic indices, use sc_off for gfrom in combination with
+    # uc-sc matches to obtain the neighboring places.
+    for uc_off_k, (afr_l, ato_l) in d_uc_match.items():
+        uc_off = np.frombuffer(uc_off_k, dtype=int)
+        afromto = list()
+        for sc_off in gfrom.sc.sc_off:
+            sc_uc_off = uc_off + sc_off
+            afromto.append(d_sc_match[sc_uc_off])
+        afr_r, ato_r = np.hstack(afromto)
+        
+        spgeom_transfer_outeridx(
+            spfrom, 
+            spto, 
+            afr_l, 
+            afr_r, 
+            ato_l, 
+            ato_r, 
+            atomic_indices=True, 
+            op=op
+        )
+
+
 
         
 
