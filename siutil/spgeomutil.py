@@ -4,13 +4,13 @@ import scipy.sparse as ssp
 from itertools import starmap
 import numpy as np
 from .geomutil import (
-    geom_periodic_match_geom, 
-    geom_tile_from_matrix, 
-    geom_sc_geom, 
-    geom_uc_match, 
-    geom_sc_match, 
-    geom_uc_wrap
-    )
+    geom_periodic_match_geom,
+    geom_tile_from_matrix,
+    geom_sc_geom,
+    geom_uc_match,
+    geom_sc_match,
+    geom_uc_wrap,
+)
 
 
 def spgeom_wrap_uc(spgeom):
@@ -26,18 +26,32 @@ def spgeom_wrap_uc(spgeom):
     return newspgeom
 
 
-def spgeom_transfer_to_sub(spfrom, spto, pair, only_dim=None, match_specie=True, op='assign'):
+def spgeom_transfer_to_sub(
+    spfrom, spto, pair, only_dim=None, match_specie=True, op="assign"
+):
     """Copy all matrix elements from spfrom to spto in the place specified with pair; pair should
     be an atom in each of the spgeoms that match. The geometries are then rigidly matched from
     there, and on all matches (species and location) the matrix elements are transferred."""
-    gfrom = spfrom.geometry.move(spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]])
+    gfrom = spfrom.geometry.move(
+        spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]]
+    )
 
     sc0m, sc1m = geom_sc_match(gfrom, spto.geometry, match_specie=match_specie).T
     uc0m = sc0m[sc0m < gfrom.na]
     uc1m = sc1m[sc1m < spto.na]
 
     # TODO: probably faster by using spto.spsame(spfrom) and then using csr-methods?
-    spgeom_transfer_outeridx(spfrom, spto, uc0m, sc0m, uc1m, sc1m, atomic_indices=True, only_dim=only_dim, op=op)
+    spgeom_transfer_outeridx(
+        spfrom,
+        spto,
+        uc0m,
+        sc0m,
+        uc1m,
+        sc1m,
+        atomic_indices=True,
+        only_dim=only_dim,
+        op=op,
+    )
 
     # for m0, m1 in zip(uc0m, uc1m):
     #     # These are the matched 'from' atoms (uc)
@@ -52,7 +66,17 @@ def spgeom_transfer_to_sub(spfrom, spto, pair, only_dim=None, match_specie=True,
     return  # inplace operation
 
 
-def spgeom_transfer_outeridx(spfrom, spto, from_left, from_right, to_left, to_right, atomic_indices=False, only_dim=None, op='assign'):
+def spgeom_transfer_outeridx(
+    spfrom,
+    spto,
+    from_left,
+    from_right,
+    to_left,
+    to_right,
+    atomic_indices=False,
+    only_dim=None,
+    op="assign",
+):
     """Akin to `spto[to_left, to_right] = spfrom[from_left, from_right]`, but where 'outer indexing' is understood.
     Ie. if spto was a 2d numpy array, then spto[to_left, to_right] would be a 'sub' 2d array.
     If `atomic_indices=True` (default false), the indices are translated to orbitals first.
@@ -65,24 +89,30 @@ def spgeom_transfer_outeridx(spfrom, spto, from_left, from_right, to_left, to_ri
         to_left = spfrom.a2o(to_left, all=True)
         from_right = spfrom.a2o(from_right, all=True)
         to_right = spfrom.a2o(to_right, all=True)
-    if op == 'assign':
+    if op == "assign":
         for from_row, to_row in zip(from_left, to_left):
             if only_dim is None:
                 spto[to_row, to_right] = spfrom[from_row, from_right]
             else:
-                spto[to_row, to_right, only_dim] = spfrom[from_row, from_right, only_dim]
-    elif op == 'add':
+                spto[to_row, to_right, only_dim] = spfrom[
+                    from_row, from_right, only_dim
+                ]
+    elif op == "add":
         for from_row, to_row in zip(from_left, to_left):
             if only_dim is None:
                 spto[to_row, to_right] += spfrom[from_row, from_right]
             else:
-                spto[to_row, to_right, only_dim] += spfrom[from_row, from_right, only_dim]
-    elif op == 'subtract':
+                spto[to_row, to_right, only_dim] += spfrom[
+                    from_row, from_right, only_dim
+                ]
+    elif op == "subtract":
         for from_row, to_row in zip(from_left, to_left):
             if only_dim is None:
                 spto[to_row, to_right] -= spfrom[from_row, from_right]
             else:
-                spto[to_row, to_right, only_dim] -= spfrom[from_row, from_right, only_dim]
+                spto[to_row, to_right, only_dim] -= spfrom[
+                    from_row, from_right, only_dim
+                ]
     else:
         raise ValueError(f"Invalid op {op}")
 
@@ -95,11 +125,15 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     # If spto is tiled/repeated of spfrom, then spto will end up "block dense".
     # This might be inefficient.
     # An efficient implementation could be possible with (scipy) csr matrices.
-    gfrom = spfrom.geometry.move(spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]])
+    gfrom = spfrom.geometry.move(
+        spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]]
+    )
     gtosc = geom_sc_geom(spto.geometry)
 
     # Match from_uc to to_sc
-    afrom, ato, offsets = geom_periodic_match_geom(gfrom, gtosc, pair, ret_cell_offsets=True)
+    afrom, ato, offsets = geom_periodic_match_geom(
+        gfrom, gtosc, pair, ret_cell_offsets=True
+    )
     # Todo: Only do uc-uc and calculate the uc-sc directly (should give speedup)
 
     def to_cell_dict(a_frto, offsets):
@@ -116,7 +150,7 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     scc_match, d_sc_match = to_cell_dict(sca_match, offsets)
 
     # All the matches from uc to uc
-    uca_match_filter = np.flatnonzero(sca_match[1,:] < spto.na)
+    uca_match_filter = np.flatnonzero(sca_match[1, :] < spto.na)
     uca_match = sca_match[:, uca_match_filter]
     offsets_uca = offsets[uca_match_filter, :]
     ucc_match, d_uc_match = to_cell_dict(uca_match, offsets_uca)
@@ -128,7 +162,7 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
         uc_off = np.frombuffer(uc_off_k, dtype=int)
         afrto_r = list()
         for i, sc_off in enumerate(gfrom.sc.sc_off.astype(int)):
-            sc_uc_off = (uc_off + sc_off)
+            sc_uc_off = uc_off + sc_off
             afrto_here = d_sc_match[sc_uc_off.tobytes()].copy()
             afrto_here[0, :] += i * gfrom.na
             afrto_r.append(afrto_here)
@@ -136,16 +170,9 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
 
         afr_r, ato_r = afrto_r
         afr_l, ato_l = afrto_l
-        
+
         spgeom_transfer_outeridx(
-            spfrom, 
-            spto, 
-            afr_l, 
-            afr_r, 
-            ato_l, 
-            ato_r, 
-            atomic_indices=True, 
-            op=op
+            spfrom, spto, afr_l, afr_r, ato_l, ato_r, atomic_indices=True, op=op
         )
     return  # inplace operation
 
@@ -167,12 +194,13 @@ def spgeom_tile_from_matrix(spgeom, tile):
 
 def tprint(*args, **kwargs):
     from datetime import datetime
+
     print(f"{datetime.now():%H:%M:%S}:", *args, **kwargs)
 
 
 def spgeom_lrsub(spgeom, left, right, geom="left", can_finalize=True):
     """'cross-sub' a spgeom. Result is a new spgeom. Does not necessarily make sense except for very particular cases."""
- 
+
     if geom == "left":
         geom = spgeom.geometry.sub(left)
     elif geom == "right":
@@ -180,7 +208,9 @@ def spgeom_lrsub(spgeom, left, right, geom="left", can_finalize=True):
     elif isinstance(geom, si.Geometry):
         pass
     else:
-        raise TypeError("Invalid geometry, must refer to 'left' or 'right' or be a sisl.Geometry")
+        raise TypeError(
+            "Invalid geometry, must refer to 'left' or 'right' or be a sisl.Geometry"
+        )
 
     left = spgeom.a2o(left, all=True)
     right = spgeom.a2o(spgeom.auc2sc(right), all=True)

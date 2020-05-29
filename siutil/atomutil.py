@@ -29,5 +29,5 @@ def atoms_match(atoms0, atoms1):
     spec1_o = spec1.copy()
     for ispec0, ispec1 in umatch:
         spec1[np.where(spec1_o == ispec1)] = ispec0
-    issame_matrix = (spec0[:, None] == spec1[None, :])
+    issame_matrix = spec0[:, None] == spec1[None, :]
     return issame_matrix

@@ -36,7 +36,9 @@ def geom_remove_dupes_pbc(geom, eps=1e-3):
     na0 = geom.na
     gt = geom.tile(2, 0).tile(2, 1).tile(2, 2)
     dupes = np.nonzero(
-        np.linalg.norm(gt.xyz.reshape(-1, 1, 3) - gt.xyz.reshape(1, -1, 3), axis=2) < eps)
+        np.linalg.norm(gt.xyz.reshape(-1, 1, 3) - gt.xyz.reshape(1, -1, 3), axis=2)
+        < eps
+    )
     dupes = np.array(dupes) % na0
     dupes = list(set(ia1 for ia0, ia1 in dupes.T if ia0 < ia1))
     return geom.remove(dupes)
@@ -47,9 +49,11 @@ def geom_uc_match(geom0, geom1, match_specie=True):
     idx match in g1."""
     if match_specie:
         samespecie = atoms_match(geom0.atom, geom1.atom)
-    
+
     # TODO: Only calc distances where atoms are same specie, also allow taking precomputed samespecie
-    isclose = np.linalg.norm(geom0.xyz[:, None, :]-geom1.xyz[None, :, :], axis=2) < 1e-3
+    isclose = (
+        np.linalg.norm(geom0.xyz[:, None, :] - geom1.xyz[None, :, :], axis=2) < 1e-3
+    )
     if match_specie:
         match = np.logical_and(isclose, samespecie)
     else:
@@ -88,7 +92,7 @@ def geom_sc_geom(geom, uc_lowerleft=True, wrap=False):
     tosub = []
     for offset in geom.sc.sc_off:
         t = offset - lowerleft
-        start = t[0]*na + nsc[0]*t[1]*na + nsc[0]*nsc[1]*t[2]*na
+        start = t[0] * na + nsc[0] * t[1] * na + nsc[0] * nsc[1] * t[2] * na
         tosub.append(np.arange(int(start), int(start + na)))
     g = g.sub(np.concatenate(tosub))
     if uc_lowerleft:

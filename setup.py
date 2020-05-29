@@ -11,10 +11,7 @@ setup(
     url="",
     license="LGPLv3",
     packages=["siutil"],
-    entry_points={
-        'console_scripts':
-            ['sgui = siutil.sgui:main']
-    },
+    entry_points={"console_scripts": ["sgui = siutil.sgui:main"]},
     install_requires=["sisl", "ase"],
     zip_safe=False,
 )
