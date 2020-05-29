@@ -1,4 +1,5 @@
 import sisl as si
+from sisl.utils.ranges import array_arange
 import scipy.sparse as ssp
 from itertools import starmap
 import numpy as np
@@ -90,8 +91,10 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     """Copy all the matrix elements from spfrom to spto in places where spto correspond to periodic
     repetitions of spfrom. You must provide a `pair`, being a two-tuple consisting of an index from
     each of the two sparse geometries that match (eg. `(0, 0)` if the first atoms are the same)."""
-    # TODO: works but explicitly sets a lot of zeros
-    # TODO: maybe use spfrom.edges to keep sparsity
+    # The method increases sparsity somewhat as it does block-transfer (outer idx).
+    # If spto is tiled/repeated of spfrom, then spto will end up "block dense".
+    # This might be inefficient.
+    # An efficient implementation could be possible with (scipy) csr matrices.
     gfrom = spfrom.geometry.move(spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]])
     gtosc = geom_sc_geom(spto.geometry)
 
@@ -121,21 +124,18 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     # For each uc-uc cell match, the matches are LEFT side atomic indices
     # To obtain RIGHT side atomic indices, use sc_off for gfrom in combination with
     # uc-sc matches to obtain the neighboring places.
-    for uc_off_k, (afr_l, ato_l) in d_uc_match.items():
+    for uc_off_k, afrto_l in d_uc_match.items():
         uc_off = np.frombuffer(uc_off_k, dtype=int)
-        afromto = list()
+        afrto_r = list()
         for i, sc_off in enumerate(gfrom.sc.sc_off.astype(int)):
             sc_uc_off = (uc_off + sc_off)
-            afr, ato = d_sc_match[sc_uc_off.tobytes()]
-            afr = afr + i * gfrom.na
-            afromto.append((afr, ato))
+            afrto_here = d_sc_match[sc_uc_off.tobytes()].copy()
+            afrto_here[0, :] += i * gfrom.na
+            afrto_r.append(afrto_here)
+        afrto_r = np.hstack(afrto_r)
 
-        # TODO HERE: Filter based on edges in spfrom to keep sparsity
-        # from getting cols of a single row:
-        # unique(self.geometry.o2a(self._csr.edges(self.geometry.a2o(atom, True), exclude)))
-        # edges = unique(self.col[array_arange(ptr[row], n=ncol[row])])
-
-        afr_r, ato_r = np.hstack(afromto)
+        afr_r, ato_r = afrto_r
+        afr_l, ato_l = afrto_l
         
         spgeom_transfer_outeridx(
             spfrom, 
