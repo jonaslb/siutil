@@ -101,19 +101,14 @@ def geom_periodic_match_geom(unitg, superg, pair, ret_cell_offsets=False):
     repetition of that atom in superg (wrt unitg cell)"""
     ua, sa = pair
     superg = superg.move(unitg.xyz[ua] - superg.xyz[sa])
-    
-    ufx = unitg.fxyz
-    uc_off, ufx = np.divmod(ufx, 1)
 
-    sfx = np.dot(superg.xyz, unitg.icell.T)
-    cell_off, sfx = np.divmod(sfx, 1)
-
-    # Will have uc atom 0 repeated a number of times first for each match in big, etc. 
-    # TODO to allow choosing sorting by the transposed op.
-    uca, sca = (cdist(ufx, sfx) < 1e-4).nonzero()
+    dr = (superg.xyz.reshape(1, -1, 3) - unitg.xyz.reshape(-1, 1, 3)).dot(unitg.icell.T)
+    dcell, dr = np.divmod(dr, 1)
+    rounding = np.isclose(dr, 1).nonzero()
+    dcell[rounding] += 1
+    dr[rounding] = 0
+    uca, sca = np.logical_and.reduce(np.isclose(dr, 0), axis=2).nonzero()
 
     if ret_cell_offsets:
-        celloffsets = cell_off[sca, :]
-        celloffsets -= uc_off[uca, :]
-        return uca, sca, celloffsets
+        return uca, sca, dcell[uca, sca]
     return uca, sca

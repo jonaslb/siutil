@@ -1,16 +1,22 @@
 import sisl as si
+from sisl.utils.ranges import array_arange
 import scipy.sparse as ssp
 from itertools import starmap
 import numpy as np
 from .geomutil import (
-    geom_tile_from_matrix, geom_sc_geom, geom_uc_match, geom_sc_match, geom_uc_wrap
+    geom_periodic_match_geom, 
+    geom_tile_from_matrix, 
+    geom_sc_geom, 
+    geom_uc_match, 
+    geom_sc_match, 
+    geom_uc_wrap
     )
 
 
 def spgeom_wrap_uc(spgeom):
     """Wrap any atoms outside the unit cell back into the unit cell. Matrix elements 'make sense',
     ie. unit cell couplings reaching outside the uc become super cell couplings (and vice versa)."""
-    new_geom = geom_uc_wrap(spgeom.geom)
+    new_geom = geom_uc_wrap(spgeom.geometry)
     kwargs = dict(orthogonal=spgeom.orthogonal)
     if hasattr(spgeom, "spin"):
         kwargs["spin"] = spgeom.spin
@@ -24,10 +30,9 @@ def spgeom_transfer_to_sub(spfrom, spto, pair, only_dim=None, match_specie=True,
     """Copy all matrix elements from spfrom to spto in the place specified with pair; pair should
     be an atom in each of the spgeoms that match. The geometries are then rigidly matched from
     there, and on all matches (species and location) the matrix elements are transferred."""
-    gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
+    gfrom = spfrom.geometry.move(spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]])
 
-    # uc0m, uc1m = geom_uc_match(gfrom, spto.geom).T
-    sc0m, sc1m = geom_sc_match(gfrom, spto.geom, match_specie=match_specie).T
+    sc0m, sc1m = geom_sc_match(gfrom, spto.geometry, match_specie=match_specie).T
     uc0m = sc0m[sc0m < gfrom.na]
     uc1m = sc1m[sc1m < spto.na]
 
@@ -82,38 +87,66 @@ def spgeom_transfer_outeridx(spfrom, spto, from_left, from_right, to_left, to_ri
         raise ValueError(f"Invalid op {op}")
 
 
-def spgeom_transfer_periodic(spfrom, spto, pair):
+def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     """Copy all the matrix elements from spfrom to spto in places where spto correspond to periodic
     repetitions of spfrom. You must provide a `pair`, being a two-tuple consisting of an index from
     each of the two sparse geometries that match (eg. `(0, 0)` if the first atoms are the same)."""
-    gfrom = spfrom.geom.move(spto.geom.xyz[pair[1]] - spfrom.geom.xyz[pair[0]])
+    # The method increases sparsity somewhat as it does block-transfer (outer idx).
+    # If spto is tiled/repeated of spfrom, then spto will end up "block dense".
+    # This might be inefficient.
+    # An efficient implementation could be possible with (scipy) csr matrices.
+    gfrom = spfrom.geometry.move(spto.geometry.xyz[pair[1]] - spfrom.geometry.xyz[pair[0]])
+    gtosc = geom_sc_geom(spto.geometry)
 
-    gfromsc = geom_sc_geom(gfrom)
-    gtosc = geom_sc_geom(spto.geom)
+    # Match from_uc to to_sc
+    afrom, ato, offsets = geom_periodic_match_geom(gfrom, gtosc, pair, ret_cell_offsets=True)
+    # Todo: Only do uc-uc and calculate the uc-sc directly (should give speedup)
 
-    for iaold in range(len(gfrom)):
-        # For every atom in spfrom, find the periodic repetitions in spto
-        # Todo use geomutil.geom_periodic_match_geom
-        gtotmp = spto.geom.move(-gfrom.xyz[iaold])
-        gtof = np.dot(gtotmp.xyz, gfrom.icell.T)
-        # Note: small negative (eg 1e-17) becomes 1 when mod is taken
-        # breakpoint()
-        images_in_new_uc = np.flatnonzero(np.linalg.norm(np.abs(gtof) % (1-1e-15), axis=1) < 1e-3)
-        # Orbitals on iaold
-        io_old = spfrom.a2o(iaold, all=True)
-        for ianew in images_in_new_uc:
-            io_new = spto.a2o(ianew, all=True)
-            # Now iaold and ianew are the same atom (save a unit cell translation).
-            # Therefore we now need to match the supercells here and then transfer elements.
-            gf = gfromsc.move(-gfromsc.xyz[iaold, :])
-            gt = gtosc.move(-gtosc.xyz[ianew, :])
-            gfm, gtm = geom_uc_match(gf, gt).T
-            for match0, match1 in zip(gfm, gtm):
-                # Need to only use a2o for one atom at a time to avoid reordering
-                orb0 = spfrom.a2o(match0, all=True)
-                orb1 = spto.a2o(match1, all=True)
-                for o_old, o_new in zip(io_old, io_new):
-                    spto[o_new, orb1] = spfrom[o_old, orb0]
+    def to_cell_dict(a_frto, offsets):
+        cellmatches = np.unique(offsets, axis=0)
+        mdict = dict()
+        for cm in cellmatches:
+            key = cm.astype(int).tobytes()
+            idces = np.flatnonzero(np.all(cm == offsets, axis=1))
+            mdict[key] = a_frto[:, idces]
+        return cellmatches, mdict
+
+    # All the matches from uc to sc
+    sca_match = np.vstack((afrom, ato))
+    scc_match, d_sc_match = to_cell_dict(sca_match, offsets)
+
+    # All the matches from uc to uc
+    uca_match_filter = np.flatnonzero(sca_match[1,:] < spto.na)
+    uca_match = sca_match[:, uca_match_filter]
+    offsets_uca = offsets[uca_match_filter, :]
+    ucc_match, d_uc_match = to_cell_dict(uca_match, offsets_uca)
+
+    # For each uc-uc cell match, the matches are LEFT side atomic indices
+    # To obtain RIGHT side atomic indices, use sc_off for gfrom in combination with
+    # uc-sc matches to obtain the neighboring places.
+    for uc_off_k, afrto_l in d_uc_match.items():
+        uc_off = np.frombuffer(uc_off_k, dtype=int)
+        afrto_r = list()
+        for i, sc_off in enumerate(gfrom.sc.sc_off.astype(int)):
+            sc_uc_off = (uc_off + sc_off)
+            afrto_here = d_sc_match[sc_uc_off.tobytes()].copy()
+            afrto_here[0, :] += i * gfrom.na
+            afrto_r.append(afrto_here)
+        afrto_r = np.hstack(afrto_r)
+
+        afr_r, ato_r = afrto_r
+        afr_l, ato_l = afrto_l
+        
+        spgeom_transfer_outeridx(
+            spfrom, 
+            spto, 
+            afr_l, 
+            afr_r, 
+            ato_l, 
+            ato_r, 
+            atomic_indices=True, 
+            op=op
+        )
     return  # inplace operation
 
 
@@ -121,7 +154,7 @@ def spgeom_tile_from_matrix(spgeom, tile):
     """Choose a new periodicity for a sparse geometry. `tile` is a matrix where each row represents
     the linear combination of old lattice vectors that form a new lattice vector.
     Must be integers."""
-    gtiled = geom_tile_from_matrix(spgeom.geom, tile)
+    gtiled = geom_tile_from_matrix(spgeom.geometry, tile)
     kwargs = dict(orthogonal=spgeom.orthogonal)
     if hasattr(spgeom, "spin"):
         kwargs["spin"] = spgeom.spin
@@ -141,9 +174,9 @@ def spgeom_lrsub(spgeom, left, right, geom="left", can_finalize=True):
     """'cross-sub' a spgeom. Result is a new spgeom. Does not necessarily make sense except for very particular cases."""
  
     if geom == "left":
-        geom = spgeom.geom.sub(left)
+        geom = spgeom.geometry.sub(left)
     elif geom == "right":
-        geom = spgeom.geom.sub(right)
+        geom = spgeom.geometry.sub(right)
     elif isinstance(geom, si.Geometry):
         pass
     else:
