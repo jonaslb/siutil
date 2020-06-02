@@ -155,6 +155,9 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
     offsets_uca = offsets[uca_match_filter, :]
     ucc_match, d_uc_match = to_cell_dict(uca_match, offsets_uca)
 
+    # Prepare edges (to preserve some sparsity after transfer)
+    fr_edges = [set(spfrom.edges(atom=i)) for i in range(spfrom.na)]
+
     # For each uc-uc cell match, the matches are LEFT side atomic indices
     # To obtain RIGHT side atomic indices, use sc_off for gfrom in combination with
     # uc-sc matches to obtain the neighboring places.
@@ -171,10 +174,40 @@ def spgeom_transfer_periodic(spfrom, spto, pair, op="assign"):
         afr_r, ato_r = afrto_r
         afr_l, ato_l = afrto_l
 
+        # Create afr_r and ato_r for each row (remove zeros)
+        # TODO: Is doing it by orbital faster?
+        # TODO: Vectorize (numpyize) the loops
+        afr_rf = [[] for _ in afr_l]
+        ato_rf = [[] for _ in ato_l]
+        for i, iafr_l in enumerate(afr_l):
+            edges = fr_edges[iafr_l]
+            for afrr, ator in zip(afr_r, ato_r):
+                if afrr in edges:
+                    afr_rf[i].append(afrr)
+                    ato_rf[i].append(ator)
+
         spgeom_transfer_outeridx(
             spfrom, spto, afr_l, afr_r, ato_l, ato_r, atomic_indices=True, op=op
         )
     return  # inplace operation
+
+
+
+    # For each uc-uc cell match, the matches are LEFT side atomic indices
+    # To obtain RIGHT side atomic indices, use sc_off for gfrom in combination with
+    # uc-sc matches to obtain the neighboring places.
+    prog = lambda x: x
+    if progress and tqdm:
+        prog = tqdm
+    for uc_off_k, (afr_l, ato_l) in prog(d_uc_match.items()):
+        uc_off = np.frombuffer(uc_off_k, dtype=int)
+        afromto = list()
+        for sc_off in gfrom.sc.sc_off.astype(int):
+            sc_uc_off = uc_off + sc_off
+            afromto.append(d_sc_match[sc_uc_off.tobytes()])
+        afr_r, ato_r = np.hstack(afromto)
+
+        
 
 
 def spgeom_tile_from_matrix(spgeom, tile):
