@@ -52,7 +52,7 @@ def geom_uc_match(geom0, geom1, match_specie=True):
 
     # TODO: Only calc distances where atoms are same specie, also allow taking precomputed samespecie
     isclose = (
-        np.linalg.norm(geom0.xyz[:, None, :] - geom1.xyz[None, :, :], axis=2) < 1e-3
+        cdist(geom0.xyz, geom1.xyz) < 1e-3
     )
     if match_specie:
         match = np.logical_and(isclose, samespecie)
@@ -109,6 +109,7 @@ def geom_periodic_match_geom(unitg, superg, pair, ret_cell_offsets=False):
     ua, sa = pair
     superg = superg.move(unitg.xyz[ua] - superg.xyz[sa])
 
+    # TODO: Don't use a mega-array
     dr = (superg.xyz.reshape(1, -1, 3) - unitg.xyz.reshape(-1, 1, 3)).dot(unitg.icell.T)
     dcell, dr = np.divmod(dr, 1)
     rounding = np.isclose(dr, 1).nonzero()
