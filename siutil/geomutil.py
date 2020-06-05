@@ -48,7 +48,7 @@ def geom_uc_match(geom0, geom1, match_specie=True):
     """Returns an nx2 matrix where n in number of matches and col 1 is idx match in g0 and col 2 is
     idx match in g1."""
     if match_specie:
-        samespecie = atoms_match(geom0.atom, geom1.atom)
+        samespecie = atoms_match(geom0.atoms, geom1.atoms)
 
     # TODO: Only calc distances where atoms are same specie, also allow taking precomputed samespecie
     isclose = (
