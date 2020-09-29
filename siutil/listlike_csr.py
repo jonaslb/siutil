@@ -26,9 +26,11 @@ class LCSR:
     """LCSR: List of Compressed Sparse Row matrices
 
     This object is useful for doing maths with several csr-matrices at once.
-    In particular this addresses a weakness in sisl: Math with two SparseCSRs is
-    unreasonably slow. Instead you can do a quick conversion to LCSR, do the math,
-    and convert back, like so:
+    In particular this addresses two weaknesses in sisl: 
+    1. Math with two SparseCSRs is unreasonably slow.
+    2. Indexing SparseCSRs isn't really fancy, and it always results in dense results.
+
+    You can use LCSR like so, for example:
 
     >>> dHS = HSnew.copy(); dHS._csr = (LCSR(dHS._csr) - LCSR(HSold._csr)).tosisl()
 
