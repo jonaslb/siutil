@@ -106,8 +106,10 @@ def _LCSR_binop(op):
             if self.dim != other.dim:
                 raise ValueError(f"{self} and {other} have mismatching dims!")
             it = zip(self._csrs, other._csrs)
-        else:
+        elif np.isscalar(other):
             it = zip(self._csrs, itertools.repeat(other))
+        else:
+            raise TypeError(f"{type(self)} cannot use {op} with {type(other)}")
         return self._init_child([op(s, o) for s, o in it])
     return _op
 
