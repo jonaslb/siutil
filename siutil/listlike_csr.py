@@ -4,6 +4,7 @@ import sisl as si
 import operator
 from functools import wraps
 import itertools
+import warnings
 
 
 def _upcast_3index(idx):
@@ -62,7 +63,20 @@ class LCSR:
     def dim(self):
         return len(self._csrs)
 
-    def tosisl(self):
+    def explicit_diagonal(self):
+        """In-place operation: Ensure diagonal is explicitly set."""
+        idxdiag = np.arange(min(self._csrs[0].shape))
+        with warnings.catch_warnings():
+            # Scipy will give SparseEfficiencyWarning, and advices using lil-matrix
+            # for sparsity mutation. However, lil-matrix does not support explicit
+            # zeros. So we have to do it like this.
+            warnings.simplefilter("always")
+            for m in self._csrs:
+                m[idxdiag, idxdiag] = m[idxdiag, idxdiag]
+
+    def tosisl(self, safediag=False):
+        if safediag:
+            self.explicit_diagonal()
         return si.SparseCSR.fromsp(*self._csrs)
 
     def __getitem__(self, index):
@@ -128,6 +142,9 @@ class LSpGeom(LCSR):
     spgeom information (geometry, spin). The `tosisl()` method then
     gives directly the right spgeom object instead of "just" the SparseCSR.
 
+    Example:
+    >>> dHS = (LSpGeom(HSnew) - LSpGeom(HSold)).tosisl()
+
     Parameters
     ----------
     obj : sisl.SparseOrbital
@@ -156,7 +173,9 @@ class LSpGeom(LCSR):
             raise ValueError("LSpGeom needs to know if its orthogonal")
 
 
-    def tosisl(self):
+    def tosisl(self, safediag=False):
+        if safediag:
+            self.explicit_diagonal()
         ukwargs = self._kwargs.copy()
         kind = ukwargs.pop("spgeom_type")
 
