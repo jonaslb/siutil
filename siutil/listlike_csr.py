@@ -186,9 +186,10 @@ class LSpGeom(LCSR):
         ukwargs = self._kwargs.copy()
         kind = ukwargs.pop("spgeom_type")
 
+        geometry = ukwargs.pop("geometry")
         P = self._csrs
         S = None
         if ukwargs.pop("orthogonal", False):
             S = P[-1]
             P = P[:-1]
-        return kind.fromsp(P=P, S=S, **ukwargs)
+        return kind.fromsp(geometry=geometry, P=P, S=S, **ukwargs)
