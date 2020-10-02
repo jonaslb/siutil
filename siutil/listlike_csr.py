@@ -5,6 +5,10 @@ import operator
 from functools import wraps
 import itertools
 import warnings
+import scipy
+
+
+SCIPYVERSION = tuple(int(x) for x in scipy.__version__.split("."))
 
 
 def _upcast_3index(idx):
@@ -71,8 +75,13 @@ class LCSR:
             # for sparsity mutation. However, lil-matrix does not support explicit
             # zeros. So we have to do it like this.
             warnings.simplefilter("always")
-            for m in self._csrs:
-                m[idxdiag, idxdiag] = m[idxdiag, idxdiag]
+            if SCIPYVERSION >= (1, 4):
+                for m in self._csrs:
+                    m[idxdiag, idxdiag] = m[idxdiag, idxdiag]
+            else:  # smart indexing not working so well
+                for m in self._csrs:
+                    for i in idxdiag:
+                        m[i, i] = 0
 
     def tosisl(self, safediag=False):
         if safediag:
@@ -171,7 +180,6 @@ class LSpGeom(LCSR):
             raise ValueError("LSpGeom needs a geometry")
         if "orthogonal" not in self._kwargs:
             raise ValueError("LSpGeom needs to know if its orthogonal")
-
 
     def tosisl(self, safediag=False):
         if safediag:
