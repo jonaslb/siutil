@@ -74,14 +74,13 @@ class LCSR:
             # Scipy will give SparseEfficiencyWarning, and advices using lil-matrix
             # for sparsity mutation. However, lil-matrix does not support explicit
             # zeros. So we have to do it like this.
-            warnings.simplefilter("always")
+            warnings.simplefilter("ignore")
             if SCIPYVERSION >= (1, 4):
                 for m in self._csrs:
                     m[idxdiag, idxdiag] = m[idxdiag, idxdiag]
             else:  # smart indexing not working so well
                 for m in self._csrs:
-                    for i in idxdiag:
-                        m[i, i] = 0
+                    m[idxdiag, idxdiag] = np.squeeze(np.asarray(m[idxdiag, idxdiag]))
 
     def tosisl(self, safediag=False):
         if safediag:
