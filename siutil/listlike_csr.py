@@ -90,7 +90,7 @@ class LCSR:
     def __getitem__(self, index):
         sidx, cidx = _upcast_3index(index)
         if isinstance(sidx, int):
-            return LCSR([self._csrs[sidx][cidx]])
+            return self._csrs[sidx][cidx]
         elif isinstance(sidx, slice):
             return LCSR([csr[cidx] for csr in self._csrs[sidx]])
         else:
@@ -98,15 +98,26 @@ class LCSR:
 
     def __setitem__(self, index, value):
         sidx, cidx = _upcast_3index(index)
+        bc_sidx = False
+        if isinstance(value, sparse.csr_matrix):
+            bc_sidx = True
+            value = LCSR([value])
         if isinstance(sidx, int):
             if len(value._csrs) != 1:
                 raise ValueError("Dimension mismatch")
             self._csrs[sidx][cidx] = value._csrs[0]
-        elif isinstance(sidx, slice):
-            for scsr, ocsr in zip(self._csrs[sidx], value._csrs):
+            return
+
+        if isinstance(sidx, slice):
+            selfcsrs = self._csrs[sidx]
+            valcsrs = value._csrs
+            if bc_sidx:
+                valcsrs = valcsrs * len(selfcsrs)
+            for scsr, ocsr in zip(selfcsrs, valcsrs):
                 scsr[cidx] = ocsr
         else:
-            for i, ocsr in zip(sidx, value._csrs):
+            vcsrs = value._csrs if not bc_sidx else value._csrs * len(sidx)
+            for i, ocsr in zip(sidx, vcsrs):
                 self._csrs[i][cidx] = ocsr
 
     def eliminate_zeros(self, atol=0):
@@ -120,9 +131,7 @@ class LCSR:
         ukwargs.update(kwargs)
         return type(self)(*args, **ukwargs)
 
-    def copy(self, shallow=False):
-        if shallow:
-            return self._init_child(self._csrs.copy())
+    def copy(self):
         return self._init_child([csr.copy() for csr in self._csrs])
 
 
