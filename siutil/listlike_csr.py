@@ -8,7 +8,7 @@ import warnings
 import scipy
 
 
-SCIPYVERSION = tuple(int(x) for x in scipy.__version__.split("."))
+SCIPYVERSION = tuple(int(x) for x in scipy.__version__.split(".")[:3])
 
 
 def _upcast_3index(idx):
@@ -189,7 +189,7 @@ class LSpGeom(LCSR):
         geometry = ukwargs.pop("geometry")
         P = self._csrs
         S = None
-        if ukwargs.pop("orthogonal", False):
+        if not ukwargs.pop("orthogonal"):
             S = P[-1]
             P = P[:-1]
         return kind.fromsp(geometry=geometry, P=P, S=S, **ukwargs)
