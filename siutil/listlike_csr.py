@@ -56,7 +56,7 @@ class LCSR:
     """
     def __init__(self, obj):
         if isinstance(obj, (tuple, list)):
-            self._csrs = obj
+            self._csrs = list(obj)
         elif isinstance(obj, si.SparseCSR):
             self._csrs = [obj.tocsr(i) for i in range(obj.dim)]
         else:
@@ -119,6 +119,11 @@ class LCSR:
         ukwargs = self._kwargs.copy()
         ukwargs.update(kwargs)
         return type(self)(*args, **ukwargs)
+
+    def copy(self, shallow=False):
+        if shallow:
+            return self._init_child(self._csrs.copy())
+        return self._init_child([csr.copy() for csr in self._csrs])
 
 
 def _LCSR_binop(op):
