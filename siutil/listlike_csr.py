@@ -123,7 +123,7 @@ class LCSR:
     def eliminate_zeros(self, atol=0):
         for csr in self._csrs:
             if atol > 0:
-                csr.data[np.abs(csr.data) > atol] = 0
+                csr.data[np.abs(csr.data) < atol] = 0
             csr.eliminate_zeros()
 
     def _init_child(self, *args, **kwargs):
