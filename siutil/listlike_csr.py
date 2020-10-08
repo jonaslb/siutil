@@ -6,6 +6,7 @@ from functools import wraps
 import itertools
 import warnings
 import scipy
+from itertools import zip_longest
 
 
 SCIPYVERSION = tuple(int(x) for x in scipy.__version__.split(".")[:3])
@@ -15,7 +16,7 @@ def _upcast_3index(idx):
     if (
         isinstance(idx, int)
         or isinstance(idx, list)
-        or (isinstance(idx, np.array) and len(idx.shape) == 1)
+        or (isinstance(idx, np.ndarray) and len(idx.shape) == 1)
         ):
         idx = (idx,)
     if not isinstance(idx, tuple):
@@ -134,8 +135,19 @@ class LCSR:
     def copy(self):
         return self._init_child([csr.copy() for csr in self._csrs])
 
+    def multiply(self, other):
+        # * operator for sparse matrices is matmat mul (annoyingly). Provide mul
+        if isinstance(other, LCSR):
+            it = zip_longest(self._csrs, other._csrs)
+        else:
+            it = zip(self._csrs, itertools.repeat(other))
+        return self._init_child([m1.multiply(m2).tocsr() for m1, m2 in it])
 
-def _LCSR_binop(op):
+
+def _LCSR_binop(op, swap=False):
+    order_operands = lambda a, b: (a, b)
+    if swap:
+        order_operands = lambda a, b: (b, a)
     @wraps(op)
     def _op(self, other):
         if isinstance(other, LCSR):
@@ -145,16 +157,21 @@ def _LCSR_binop(op):
         elif np.isscalar(other):
             it = zip(self._csrs, itertools.repeat(other))
         else:
-            raise TypeError(f"{type(self)} cannot use {op} with {type(other)}")
-        return self._init_child([op(s, o) for s, o in it])
+            raise NotImplementedError
+        return self._init_child([op(*order_operands(s, o)) for s, o in it])
     return _op
 
 
 _binops = {
-    "add", "iadd", "sub", "isub", "mul", "imul", "truediv", "itruediv"
+    "add", "radd", "iadd",
+    "sub", "rsub", "isub",
+    "mul", "rmul", "imul",
+    "truediv", "rtruediv", "itruediv",
 }
 for bop in _binops:
-    setattr(LCSR, f"__{bop}__", _LCSR_binop(getattr(operator, bop)))
+    swap = bop.startswith("r")
+    cbop = bop[1:] if swap else bop
+    setattr(LCSR, f"__{bop}__", _LCSR_binop(getattr(operator, cbop), swap=swap))
 
 
 class LSpGeom(LCSR):
